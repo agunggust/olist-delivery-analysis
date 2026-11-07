@@ -2,6 +2,12 @@
 
 Studi kasus operasional dengan SQL (SQLite) dan dashboard HTML interaktif. Tujuannya adalah menentukan wilayah tujuan yang sebaiknya diselidiki lebih dulu untuk mengurangi jumlah pesanan yang terlambat.
 
+## Dashboard
+
+[Buka demo interaktif](https://agunggust.github.io/olist-delivery-analysis/dashboard.html)
+
+[![Pratinjau KPI keterlambatan, peringkat wilayah, dan tren bulanan](dashboard-preview.png)](https://agunggust.github.io/olist-delivery-analysis/dashboard.html)
+
 ## Hasil
 
 Dari 99.441 pesanan sumber, 96.470 memenuhi kriteria analisis. Sebanyak 6.534 pesanan (6,8%) tiba setelah tanggal estimasi. Cakupan tanggal tiba aktual adalah 11 Oktober 2016 hingga 17 Oktober 2018.

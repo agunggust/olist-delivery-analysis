@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analisis Keterlambatan Pengiriman | Olist</title>
+<style>
+:root{color-scheme:light;--ink:#152d38;--muted:#50656c;--line:#d7e3e4;--paper:#fff;--teal:#11675f;--accent:#b5502c}
+*{box-sizing:border-box}
+body{margin:0;background:#edf4f3;color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:1120px;margin:auto;padding:32px 20px 48px}
+header{background:#143e43;color:white;border-radius:20px;padding:clamp(24px,5vw,48px)}
+.eyebrow{font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;font-weight:700}
+h1{font-size:clamp(2rem,5vw,3.4rem);letter-spacing:-.045em;line-height:1.1;margin:8px 0 12px;max-width:750px}
+h2{font-size:1.25rem;margin:0 0 6px}
+p{margin:0 0 12px}
+header p:last-child,footer p:last-child{margin-bottom:0}
+.metrics,.detail{display:grid;gap:14px;margin-top:14px}
+.metrics{grid-template-columns:repeat(3,1fr)}
+.detail{grid-template-columns:1fr 1.1fr}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:22px;min-width:0}
+.metric{display:block;font-size:clamp(1.6rem,4vw,2.4rem);font-weight:750;letter-spacing:-.04em}
+.muted,footer{color:var(--muted);font-size:.88rem}
+.note{margin-top:14px;border-left:5px solid var(--accent)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.87rem}
+th,td{text-align:right;padding:8px 5px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+tbody tr.selected{background:#e1f1ee;font-weight:700}
+.table-scroll{max-height:430px;overflow:auto}
+thead th{position:sticky;top:0;background:var(--paper)}
+select{font:inherit;color:var(--ink);background:white;border:1px solid #8ba3a4;border-radius:8px;padding:5px 8px;margin-left:4px}
+.trend{display:grid;gap:6px;margin-top:14px}
+.trend-row{display:grid;grid-template-columns:66px minmax(18px,1fr) 112px;gap:8px;align-items:center;font-size:.82rem;font-variant-numeric:tabular-nums}
+.track{background:#e4edec;border-radius:5px;overflow:hidden;height:10px}
+.fill{background:var(--teal);height:100%}
+.trend-value{text-align:right}
+footer{margin-top:18px}
+a{color:var(--teal)}
+@media(max-width:740px){.detail{grid-template-columns:1fr}.card{padding:15px}}
+@media(max-width:440px){.metrics{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<p class="eyebrow">Studi kasus operasional · Olist Brasil</p>
+<h1>Keterlambatan pengiriman e-commerce</h1>
+<p>Wilayah tujuan mana yang perlu diselidiki lebih dulu untuk mengurangi jumlah pesanan terlambat?</p>
+<p id="coverage"></p>
+</header>
+<section class="metrics" aria-label="Ringkasan semua wilayah">
+<div class="card">Pesanan dianalisis<strong class="metric" id="total"></strong></div>
+<div class="card">Pesanan terlambat<strong class="metric" id="late"></strong></div>
+<div class="card">Tingkat keterlambatan<strong class="metric" id="rate"></strong></div>
+</section>
+<section class="card note" aria-labelledby="priority-title">
+<h2 id="priority-title">Prioritas investigasi</h2>
+<div id="priority"></div>
+</section>
+<div class="detail">
+<section class="card" aria-labelledby="state-title">
+<h2 id="state-title">Peringkat wilayah tujuan</h2>
+<p class="muted">Diurutkan berdasarkan jumlah pesanan terlambat.</p>
+<div class="table-scroll" tabindex="0" aria-label="Tabel peringkat wilayah">
+<table><thead><tr><th scope="col">Wilayah</th><th scope="col">Pesanan</th><th scope="col">Terlambat</th><th scope="col">Tingkat</th></tr></thead>
+<tbody id="ranking"></tbody></table>
+</div>
+</section>
+<section class="card" aria-labelledby="trend-title">
+<h2 id="trend-title">Tren bulanan wilayah</h2>
+<label for="state">Wilayah tujuan</label>
+<select id="state"></select>
+<div id="trend" class="trend" aria-label="Persentase dan jumlah terlambat per bulan"></div>
+<p class="muted" style="margin-top:12px">Bulan mengikuti tanggal tiba aktual. Bulan tanpa pesanan yang memenuhi kriteria dilewati. Panjang bar menunjukkan tingkat keterlambatan pada skala 0–100%.</p>
+</section>
+</div>
+<footer>
+<p>Pesanan dinyatakan terlambat bila tanggal tiba aktual melewati tanggal estimasi. Analisis mencakup pesanan berstatus <em>delivered</em> dengan kedua tanggal valid. Wilayah menunjukkan tujuan pelanggan. Pola ini membantu menentukan prioritas investigasi dan belum menjelaskan penyebab keterlambatan.</p>
+<p id="excluded"></p>
+<p><a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce">Sumber data · Brazilian E-Commerce Public Dataset by Olist</a></p>
+</footer>
+</main>
+<script>
+"use strict";
+const data = /* DASHBOARD_DATA */;
+const number = new Intl.NumberFormat("id-ID");
+const percent = new Intl.NumberFormat("id-ID", {style:"percent", minimumFractionDigits:1, maximumFractionDigits:1});
+const formatRate = value => percent.format(value / 100);
+const byId = id => document.getElementById(id);
+const {totals, states, monthly} = data;
+const first = states[0];
+
+byId("coverage").textContent = `Tanggal tiba aktual · ${totals.first_delivery} hingga ${totals.last_delivery}`;
+byId("total").textContent = number.format(totals.delivered_orders);
+byId("late").textContent = number.format(totals.late_orders);
+byId("rate").textContent = percent.format(totals.late_orders / totals.delivered_orders);
+byId("excluded").textContent = `${number.format(data.source_orders - totals.delivered_orders)} dari ${number.format(data.source_orders)} pesanan sumber berada di luar cakupan KPI.`;
+byId("priority").textContent = `${first.destination_state} mencatat ${number.format(first.late_orders)} pesanan terlambat dari ${number.format(first.delivered_orders)} pesanan yang dianalisis (${formatRate(first.late_pct)}). Ini wilayah dengan jumlah keterlambatan tertinggi dalam data.`;
+
+const stateSelect = byId("state");
+const tableRows = new Map();
+for (const row of states) {
+  const tr = byId("ranking").insertRow();
+  tableRows.set(row.destination_state, tr);
+  for (const value of [row.destination_state, number.format(row.delivered_orders),
+                       number.format(row.late_orders), formatRate(row.late_pct)]) {
+    tr.insertCell().textContent = value;
+  }
+  const option = document.createElement("option");
+  option.textContent = row.destination_state;
+  option.value = row.destination_state;
+  stateSelect.append(option);
+}
+
+function showTrend() {
+  const state = stateSelect.value;
+  for (const [code, row] of tableRows) {
+    row.classList.toggle("selected", code === state);
+  }
+  const trend = byId("trend");
+  trend.replaceChildren();
+  for (const row of monthly.filter(item => item.destination_state === state)) {
+    const line = document.createElement("div");
+    line.className = "trend-row";
+    const label = document.createElement("span");
+    label.textContent = row.delivery_month;
+    const track = document.createElement("div");
+    track.className = "track";
+    track.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("div");
+    fill.className = "fill";
+    fill.style.width = `${row.late_pct}%`;
+    track.append(fill);
+    const value = document.createElement("span");
+    value.className = "trend-value";
+    value.textContent = `${formatRate(row.late_pct)} · ${number.format(row.late_orders)}/${number.format(row.delivered_orders)}`;
+    line.append(label, track, value);
+    trend.append(line);
+  }
+}
+
+stateSelect.addEventListener("change", showTrend);
+stateSelect.value = first.destination_state;
+showTrend();
+</script>
+</body>
+</html>

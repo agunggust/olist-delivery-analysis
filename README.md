@@ -44,3 +44,9 @@ Skrip membuat ulang dashboard.html dan delivery.sqlite, dengan validasi satu bar
 | sql/04_priority_sensitivity.sql | Peringkat dengan cakupan waktu berbeda dan batas minimum volume |
 
 Database yang dihasilkan sudah memuat tampilan delivery_orders. Jalankan berkas 02–04 untuk meninjau hasil query di SQLite. Arsip sumber dan database hasil build dikecualikan dari Git melalui .gitignore.
+
+## Tes
+
+Jalankan tes SQL dengan data sintetis. Arsip Olist tidak diperlukan.
+
+    python -m unittest discover -s tests -v
